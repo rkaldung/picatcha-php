@@ -48,7 +48,7 @@ if (!function_exists('json_decode')) {
    */
   function json_decode($str) {
     $json = new Services_JSON();
-    return $json->decode($value);
+    return $json->decode($str);
   }
 }
 
@@ -64,12 +64,20 @@ if (!function_exists('json_decode')) {
  *   Data to send with the request
  * @param integer $port
  *   Port to send the request (default: 80)
+ * @param string $proxyhost
+ *   Hostname/IP of your proxy server (No socks proxy!)
+ * @param integer $proxyport
+ *   Port of your proxyserver
  *
  * @return array
  *   response
  */
-function _picatcha_http_post($host, $path, $data, $port = 80) {
-  $http_request  = "POST $path HTTP/1.0\r\n";
+function _picatcha_http_post($host, $path, $data, $port = 80, $proxyhost = null, $proxyport = null) {
+  if ($proxyhost && $proxyport) {
+      $http_request = "POST http://$host/$path HTTP/1.0";
+  } else {
+    $http_request  = "POST $path HTTP/1.0\r\n";
+  }
   $http_request .= "Host: $host\r\n";
   $http_request .= "User-Agent: Picatcha/PHP\r\n";
   $http_request .= "Content-Length: " . strlen($data) . "\r\n";
@@ -78,7 +86,11 @@ function _picatcha_http_post($host, $path, $data, $port = 80) {
   $http_request .= $data;
 
   $response = '';
-  $fs = @fsockopen($host, $port, $errno, $errstr, 10);
+  if ($proxyhost && $proxyport) {
+      $fs = @fsockopen($proxyhost, $proxyport, $errno, $errstr, 10);
+  } else {
+    $fs = @fsockopen($host, $port, $errno, $errstr, 10);
+  }
   if (FALSE == $fs) {
     die('Could not open socket');
   }
@@ -109,7 +121,7 @@ function _picatcha_http_post($host, $path, $data, $port = 80) {
  *   The HTML to be embedded in the user's form
  */
 function picatcha_get_html($pubkey, $error = NULL, $format = '2', $style = '#2a1f19', $link = '1', $IMG_SIZE = '75', $NOISE_LEVEL = 0, $NOISE_TYPE = 0, $lang = 'en', $langOverride = '0', $use_ssl=false) {
-  if($use_ssl){
+  if(($use_ssl) || (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')) {
     $api_server = "https://".PICATCHA_API_SERVER;
   }else{
     $api_server = "http://".PICATCHA_API_SERVER;
